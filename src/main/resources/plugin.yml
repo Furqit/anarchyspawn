@@ -1,0 +1,21 @@
+name: AnarchySpawn
+version: '1.0-SNAPSHOT'
+main: com.jellypudding.anarchySpawn.AnarchySpawn
+api-version: '1.21'
+description: "Handles random spawning of players in anarchy servers"
+author: AlphaAlex115
+commands:
+  spawn:
+    description: "Teleport to a random spawn location"
+    permission: anarchyspawn.spawn
+    permission-message: "You don't have permission to use this command."
+  anarchyspawn:
+    description: "AnarchySpawn admin commands"
+    usage: "/anarchyspawn reload"
+permissions:
+  anarchyspawn.spawn:
+    description: Allows using the spawn command
+    default: op
+  anarchyspawn.reload:
+    description: Allows reloading the plugin configuration
+    default: op

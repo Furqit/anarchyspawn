@@ -1,0 +1,15 @@
+# Maximum distance from 0,0 that players can spawn (in blocks)
+spawn-radius: 1000
+
+# Maximum number of attempts to find a safe spawn location
+max-spawn-attempts: 50
+
+# List of blocks that are considered unsafe to spawn on or next to
+unsafe-blocks:
+  - LAVA
+  - WATER
+  - CACTUS
+  - FIRE
+  - MAGMA_BLOCK
+  - SWEET_BERRY_BUSH
+  - POWDER_SNOW

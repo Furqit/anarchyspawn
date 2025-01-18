@@ -126,7 +126,8 @@ public final class AnarchySpawn extends JavaPlugin implements Listener, TabCompl
     @EventHandler
     public void onPlayerRespawn(PlayerRespawnEvent event) {
         if (!event.isAnchorSpawn() && !event.isBedSpawn()) {
-            Location spawnLocation = findSafeSpawnLocation(event.getPlayer().getWorld());
+            World overworld = event.getPlayer().getServer().getWorlds().getFirst(); // Gets default world
+            Location spawnLocation = findSafeSpawnLocation(overworld);
             if (spawnLocation != null) {
                 event.setRespawnLocation(spawnLocation);
             }

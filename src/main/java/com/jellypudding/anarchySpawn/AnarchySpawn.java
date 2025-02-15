@@ -30,7 +30,6 @@ public final class AnarchySpawn extends JavaPlugin implements Listener, TabCompl
         saveDefaultConfig();
         loadConfigValues();
 
-        // Register events and tab completers
         getServer().getPluginManager().registerEvents(this, this);
         Objects.requireNonNull(getCommand("spawn")).setTabCompleter(this);
         Objects.requireNonNull(getCommand("anarchyspawn")).setTabCompleter(this);
@@ -62,7 +61,7 @@ public final class AnarchySpawn extends JavaPlugin implements Listener, TabCompl
     }
 
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, String[] args) {
+    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, String @NotNull [] args) {
         if (command.getName().equalsIgnoreCase("spawn")) {
             if (!(sender instanceof Player player)) {
                 sender.sendMessage("This command can only be used by players!");
@@ -70,12 +69,8 @@ public final class AnarchySpawn extends JavaPlugin implements Listener, TabCompl
             }
 
             Location spawnLocation = findSafeSpawnLocation(player.getWorld());
-            if (spawnLocation != null) {
-                player.teleport(spawnLocation);
-                player.sendMessage("Teleported to a random spawn location!");
-            } else {
-                player.sendMessage("Could not find a safe spawn location!");
-            }
+            player.teleport(spawnLocation);
+            player.sendMessage("Teleported to a random spawn location!");
             return true;
         } else if (command.getName().equalsIgnoreCase("anarchyspawn")) {
             if (args.length == 0) {
@@ -99,7 +94,7 @@ public final class AnarchySpawn extends JavaPlugin implements Listener, TabCompl
     }
 
     @Override
-    public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, String[] args) {
+    public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, String @NotNull [] args) {
         if (command.getName().equalsIgnoreCase("anarchyspawn") && args.length == 1) {
             List<String> completions = new ArrayList<>();
             if (sender.hasPermission("anarchyspawn.reload") && "reload".startsWith(args[0].toLowerCase())) {
@@ -115,11 +110,7 @@ public final class AnarchySpawn extends JavaPlugin implements Listener, TabCompl
         Player player = event.getPlayer();
         if (!player.hasPlayedBefore()) {
             Location spawnLocation = findSafeSpawnLocation(player.getWorld());
-            if (spawnLocation != null) {
-                player.teleport(spawnLocation);
-            } else {
-                getLogger().warning("Could not find safe spawn location for " + player.getName());
-            }
+            player.teleport(spawnLocation);
         }
     }
 
@@ -128,13 +119,14 @@ public final class AnarchySpawn extends JavaPlugin implements Listener, TabCompl
         if (!event.isAnchorSpawn() && !event.isBedSpawn()) {
             World overworld = event.getPlayer().getServer().getWorlds().getFirst(); // Gets default world
             Location spawnLocation = findSafeSpawnLocation(overworld);
-            if (spawnLocation != null) {
-                event.setRespawnLocation(spawnLocation);
-            }
+            event.setRespawnLocation(spawnLocation);
         }
     }
 
     private Location findSafeSpawnLocation(World world) {
+        Location bestLocation = null;
+        int bestSafetyScore = -1;
+
         for (int attempt = 0; attempt < maxAttempts; attempt++) {
             // Generate random coordinates within spawn radius
             int x = random.nextInt(spawnRadius * 2) - spawnRadius;
@@ -144,26 +136,56 @@ public final class AnarchySpawn extends JavaPlugin implements Listener, TabCompl
             int y = world.getHighestBlockYAt(x, z);
             Location location = new Location(world, x + 0.5, y + 1, z + 0.5);
 
-            if (isSafeLocation(location)) {
+            int safetyScore = calculateSafetyScore(location);
+
+            // If we found a perfectly safe location, return it immediately
+            if (safetyScore == 100) {
                 return location;
             }
+
+            // Keep track of the safest location we've found
+            if (safetyScore > bestSafetyScore) {
+                bestSafetyScore = safetyScore;
+                bestLocation = location;
+            }
         }
-        return null;
+
+        // If we couldn't find a perfectly safe location, return the best one we found
+        // If we didn't find any viable location at all, return a location at build height
+        if (bestLocation == null) {
+            int x = random.nextInt(spawnRadius * 2) - spawnRadius;
+            int z = random.nextInt(spawnRadius * 2) - spawnRadius;
+            bestLocation = new Location(world, x + 0.5, world.getMaxHeight() - 2, z + 0.5);
+            getLogger().warning("Falling back to emergency spawn location at build height");
+        }
+
+        return bestLocation;
     }
 
-    private boolean isSafeLocation(Location location) {
+    private int calculateSafetyScore(Location location) {
         Block feet = location.getBlock();
         Block ground = location.subtract(0, 1, 0).getBlock();
         Block head = location.add(0, 2, 0).getBlock();
 
-        // Check if there's space for the player
+        // Start with a perfect score
+        int score = 100;
+
+        // Check for basic requirements
         if (!feet.getType().isAir() || !head.getType().isAir()) {
-            return false;
+            return 0; // Completely unsafe - can't spawn inside blocks
         }
 
-        // Check if the ground is solid and safe
-        return ground.getType().isSolid()
-                && !unsafeBlocks.contains(ground.getType())
-                && !ground.isLiquid();
+        // Penalize based on ground conditions
+        if (!ground.getType().isSolid()) {
+            score -= 50;
+        }
+        if (ground.isLiquid()) {
+            score -= 30;
+        }
+        if (unsafeBlocks.contains(ground.getType())) {
+            score -= 40;
+        }
+
+        return Math.max(score, 0); // Don't return negative scores
     }
 }

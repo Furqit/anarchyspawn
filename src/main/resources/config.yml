@@ -2,7 +2,7 @@
 spawn-radius: 300
 
 # Maximum number of attempts to find a safe spawn location
-max-spawn-attempts: 100
+max-spawn-attempts: 75
 
 # List of blocks that are considered unsafe to spawn on or next to
 unsafe-blocks:

@@ -6,7 +6,6 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
-import org.bukkit.command.TabCompleter;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -18,7 +17,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
-public final class AnarchySpawn extends JavaPlugin implements Listener, TabCompleter {
+public final class AnarchySpawn extends JavaPlugin implements Listener {
     private int spawnRadius;
     private int maxAttempts;
     private final Random random = new Random();
@@ -26,7 +25,6 @@ public final class AnarchySpawn extends JavaPlugin implements Listener, TabCompl
 
     @Override
     public void onEnable() {
-        // Save default config if it doesn't exist
         saveDefaultConfig();
         loadConfigValues();
 
@@ -34,20 +32,19 @@ public final class AnarchySpawn extends JavaPlugin implements Listener, TabCompl
         Objects.requireNonNull(getCommand("spawn")).setTabCompleter(this);
         Objects.requireNonNull(getCommand("anarchyspawn")).setTabCompleter(this);
 
-        getLogger().info("AnarchySpawn has been enabled!");
+        getLogger().info("AnarchySpawn has been enabled.");
     }
 
     @Override
     public void onDisable() {
-        getLogger().info("AnarchySpawn has been disabled!");
+        getLogger().info("AnarchySpawn has been disabled.");
     }
 
     private void loadConfigValues() {
         FileConfiguration config = getConfig();
-        spawnRadius = config.getInt("spawn-radius", 10000);
-        maxAttempts = config.getInt("max-spawn-attempts", 50);
+        spawnRadius = config.getInt("spawn-radius", 300);
+        maxAttempts = config.getInt("max-spawn-attempts", 75);
 
-        // Load unsafe blocks from config
         unsafeBlocks.clear();
         List<String> unsafeBlocksList = config.getStringList("unsafe-blocks");
         for (String blockName : unsafeBlocksList) {
@@ -68,6 +65,13 @@ public final class AnarchySpawn extends JavaPlugin implements Listener, TabCompl
                 return true;
             }
 
+            World.Environment playerEnv = player.getWorld().getEnvironment();
+            if (playerEnv == World.Environment.NETHER || playerEnv == World.Environment.THE_END) {
+                player.sendMessage("§cYou cannot use /spawn in the " + 
+                    (playerEnv == World.Environment.NETHER ? "Nether" : "End") + "!");
+                return true;
+            }
+
             Location spawnLocation = findSafeSpawnLocation(player.getWorld());
             player.teleport(spawnLocation);
             player.sendMessage("Teleported to a random spawn location!");
@@ -85,7 +89,7 @@ public final class AnarchySpawn extends JavaPlugin implements Listener, TabCompl
                 }
                 reloadConfig();
                 loadConfigValues();
-                sender.sendMessage("AnarchySpawn configuration reloaded!");
+                sender.sendMessage("AnarchySpawn configuration reloaded.");
                 return true;
             }
             return false;
@@ -117,7 +121,7 @@ public final class AnarchySpawn extends JavaPlugin implements Listener, TabCompl
     @EventHandler
     public void onPlayerRespawn(PlayerRespawnEvent event) {
         if (!event.isAnchorSpawn() && !event.isBedSpawn()) {
-            World overworld = event.getPlayer().getServer().getWorlds().getFirst(); // Gets default world
+            World overworld = event.getPlayer().getServer().getWorlds().getFirst();
             Location spawnLocation = findSafeSpawnLocation(overworld);
             event.setRespawnLocation(spawnLocation);
         }
@@ -152,6 +156,7 @@ public final class AnarchySpawn extends JavaPlugin implements Listener, TabCompl
 
         // If we couldn't find a perfectly safe location, return the best one we found
         // If we didn't find any viable location at all, return a location at build height
+        // which is not ideal but at least gives the player time to think of something.
         if (bestLocation == null) {
             int x = random.nextInt(spawnRadius * 2) - spawnRadius;
             int z = random.nextInt(spawnRadius * 2) - spawnRadius;

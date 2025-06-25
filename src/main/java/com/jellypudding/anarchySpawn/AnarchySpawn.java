@@ -20,8 +20,10 @@ import java.util.*;
 public final class AnarchySpawn extends JavaPlugin implements Listener {
     private int spawnRadius;
     private int maxAttempts;
+    private int spawnCooldown;
     private final Random random = new Random();
     private final Set<Material> unsafeBlocks = new HashSet<>();
+    private final Map<UUID, Long> spawnCooldowns = new HashMap<>();
 
     @Override
     public void onEnable() {
@@ -44,6 +46,7 @@ public final class AnarchySpawn extends JavaPlugin implements Listener {
         FileConfiguration config = getConfig();
         spawnRadius = config.getInt("spawn-radius", 300);
         maxAttempts = config.getInt("max-spawn-attempts", 75);
+        spawnCooldown = config.getInt("spawn-cooldown", 5);
 
         unsafeBlocks.clear();
         List<String> unsafeBlocksList = config.getStringList("unsafe-blocks");
@@ -68,13 +71,33 @@ public final class AnarchySpawn extends JavaPlugin implements Listener {
             World.Environment playerEnv = player.getWorld().getEnvironment();
             if (playerEnv == World.Environment.NETHER || playerEnv == World.Environment.THE_END) {
                 player.sendMessage("§cYou cannot use /spawn in the " + 
-                    (playerEnv == World.Environment.NETHER ? "Nether" : "End") + "!");
+                    (playerEnv == World.Environment.NETHER ? "Nether" : "End") + ".");
                 return true;
+            }
+
+            // Check for cooldown.
+            UUID playerId = player.getUniqueId();
+            long currentTime = System.currentTimeMillis();
+
+            // Clean up expired cooldowns to prevent memory leak.
+            cleanupExpiredCooldowns(currentTime);
+
+            if (spawnCooldowns.containsKey(playerId)) {
+                long lastUsed = spawnCooldowns.get(playerId);
+                long timeDiff = (currentTime - lastUsed) / 1000;
+                if (timeDiff < spawnCooldown) {
+                    long remainingTime = spawnCooldown - timeDiff;
+                    player.sendMessage("§cYou must wait " + remainingTime + " more second" +
+                        (remainingTime == 1 ? "" : "s") + " before using /spawn again.");
+                    return true;
+                }
             }
 
             Location spawnLocation = findSafeSpawnLocation(player.getWorld());
             player.teleport(spawnLocation);
             player.sendMessage("Teleported to a random spawn location!");
+
+            spawnCooldowns.put(playerId, currentTime);
             return true;
         } else if (command.getName().equalsIgnoreCase("anarchyspawn")) {
             if (args.length == 0) {
@@ -192,5 +215,10 @@ public final class AnarchySpawn extends JavaPlugin implements Listener {
         }
 
         return Math.max(score, 0); // Don't return negative scores
+    }
+
+    private void cleanupExpiredCooldowns(long currentTime) {
+        long expiredThreshold = currentTime - (spawnCooldown * 1000L);
+        spawnCooldowns.entrySet().removeIf(entry -> entry.getValue() < expiredThreshold);
     }
 }

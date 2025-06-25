@@ -4,6 +4,9 @@ spawn-radius: 300
 # Maximum number of attempts to find a safe spawn location
 max-spawn-attempts: 75
 
+# Cooldown in seconds for using the /spawn command
+spawn-cooldown: 5
+
 # List of blocks that are considered unsafe to spawn on or next to
 unsafe-blocks:
   - LAVA

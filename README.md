@@ -46,8 +46,4 @@ unsafe-blocks:
 `anarchyspawn.reload`: Allows reloading the plugin configuration (default: op)
 
 ## Support Me
-Donations will help me with the development of this project.
-
-One-off donation: https://ko-fi.com/lolwhatyesme
-
-Patreon: https://www.patreon.com/lolwhatyesme
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/K3K715TC1R)

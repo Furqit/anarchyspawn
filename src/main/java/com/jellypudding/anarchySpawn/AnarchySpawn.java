@@ -18,17 +18,28 @@ import org.jetbrains.annotations.NotNull;
 import java.util.*;
 
 public final class AnarchySpawn extends JavaPlugin implements Listener {
-    private int spawnRadius;
-    private int maxAttempts;
-    private int spawnCooldown;
     private final Random random = new Random();
     private final Set<Material> unsafeBlocks = new HashSet<>();
     private final Map<UUID, Long> spawnCooldowns = new HashMap<>();
+    private int spawnRadius;
+    private int maxAttempts;
+    private int spawnCooldown;
+    private boolean isFolia;
+
+    private static boolean isFolia() {
+        try {
+            Class.forName("io.papermc.paper.threadedregions.RegionizedServer");
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
+    }
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
         loadConfigValues();
+        isFolia = isFolia();
 
         getServer().getPluginManager().registerEvents(this, this);
         Objects.requireNonNull(getCommand("spawn")).setTabCompleter(this);
@@ -93,11 +104,12 @@ public final class AnarchySpawn extends JavaPlugin implements Listener {
                 }
             }
 
-            Location spawnLocation = findSafeSpawnLocation(player.getWorld());
-            player.teleport(spawnLocation);
-            player.sendMessage("Teleported to a random spawn location!");
-
-            spawnCooldowns.put(playerId, currentTime);
+            runPlayerTask(player, () -> {
+                Location spawnLocation = findSafeSpawnLocation(player.getWorld());
+                teleport(player, spawnLocation);
+                player.sendMessage("Teleported to a random spawn location!");
+                spawnCooldowns.put(playerId, currentTime);
+            });
             return true;
         } else if (command.getName().equalsIgnoreCase("anarchyspawn")) {
             if (args.length == 0) {
@@ -123,30 +135,33 @@ public final class AnarchySpawn extends JavaPlugin implements Listener {
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, String @NotNull [] args) {
         if (command.getName().equalsIgnoreCase("anarchyspawn") && args.length == 1) {
-            List<String> completions = new ArrayList<>();
             if (sender.hasPermission("anarchyspawn.reload") && "reload".startsWith(args[0].toLowerCase())) {
-                completions.add("reload");
+                return Collections.singletonList("reload");
             }
-            return completions;
         }
-        return new ArrayList<>();
+        return Collections.emptyList();
     }
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         if (!player.hasPlayedBefore()) {
-            Location spawnLocation = findSafeSpawnLocation(player.getWorld());
-            player.teleport(spawnLocation);
+            runPlayerTask(player, () -> {
+                Location spawnLocation = findSafeSpawnLocation(player.getWorld());
+                teleport(player, spawnLocation);
+            });
         }
     }
 
     @EventHandler
     public void onPlayerRespawn(PlayerRespawnEvent event) {
         if (!event.isAnchorSpawn() && !event.isBedSpawn()) {
-            World overworld = event.getPlayer().getServer().getWorlds().getFirst();
-            Location spawnLocation = findSafeSpawnLocation(overworld);
-            event.setRespawnLocation(spawnLocation);
+            Player player = event.getPlayer();
+            World overworld = player.getServer().getWorlds().getFirst();
+            runPlayerTask(player, () -> {
+                Location spawnLocation = findSafeSpawnLocation(overworld);
+                event.setRespawnLocation(spawnLocation);
+            });
         }
     }
 
@@ -220,5 +235,21 @@ public final class AnarchySpawn extends JavaPlugin implements Listener {
     private void cleanupExpiredCooldowns(long currentTime) {
         long expiredThreshold = currentTime - (spawnCooldown * 1000L);
         spawnCooldowns.entrySet().removeIf(entry -> entry.getValue() < expiredThreshold);
+    }
+
+    private void runPlayerTask(Player player, Runnable task) {
+        if (isFolia) {
+            player.getScheduler().run(this, scheduledTask -> task.run(), null);
+        } else {
+            task.run();
+        }
+    }
+
+    private void teleport(Player player, Location loc) {
+        if (isFolia) {
+            player.teleportAsync(loc);
+        } else {
+            player.teleport(loc);
+        }
     }
 }

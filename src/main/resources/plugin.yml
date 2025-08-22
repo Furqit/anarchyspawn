@@ -5,6 +5,7 @@ api-version: '1.21'
 description: "Handles random spawning of players in anarchy servers"
 author: AlphaAlex115
 website: www.minecraftoffline.net
+folia-supported: true
 commands:
   spawn:
     description: "Teleport to a random spawn location"
